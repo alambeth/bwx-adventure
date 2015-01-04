@@ -424,6 +424,8 @@ class Game(Object):
       # not understood
       self.output( "Huh?", FEEDBACK )
 
+# global singleton used as a top level container for collecting game info and state
+my_game = Game("bwx-default")
 
 class Thing(Object):
   # name: short name of this thing

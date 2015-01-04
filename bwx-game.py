@@ -8,7 +8,8 @@ from advent import NORTH, SOUTH, EAST, WEST, UP, DOWN, RIGHT, LEFT, IN, OUT, FOR
 
 # Set up the game you are going to build on.
 # my_game is a top-level container for everything in the game.
-my_game = Game("Brightworks Adventure")
+# my_game automatically comes from the import of advent module.
+my_game.set_name("Brightworks Adventure")
 
 # Create some interesting locations. Locations need a name
 # and a description of any doorways or connections to the room, like this:
