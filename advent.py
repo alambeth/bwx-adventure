@@ -7,6 +7,7 @@
 # import urllib.request as urllib2
 import urllib2
 
+import argparse
 import random
 import textwrap
 import time
@@ -188,6 +189,7 @@ class Game(Object):
     self.locations = {}
     self.robots = {}
     self.animals = {}
+    self.argparser = argparse.ArgumentParser(description='Process command line arguments.')
 
   def set_name(self, name):
     self.name = name
@@ -255,7 +257,9 @@ class Game(Object):
     return False
 
   def run(self , update_func = False):
-
+    # parse the args now that all modules have had a chance to add arg handlers
+    self.args = self.argparser.parse_args()      
+    
     # reset this every loop so we don't trigger things more than once
     self.fresh_location = False
 
