@@ -113,7 +113,7 @@ elevator.make_requirement(elev_key)
 elevator.make_requirement(pebble)
 
 # Add a verb applicable at this location.
-sidewalk.add_verb('knock', sidewalk.say('The door makes a hollow sound.'))
+sidewalk.add_verb('knock', Say('The door makes a hollow sound.'))
 
 # "scream" is an example of a custom verb defined by a Python
 # function. "def" defines a function in Python.
@@ -122,7 +122,7 @@ def scream( self, actor, noun, words ):
   print "You hear a scream '%s'." % ' '.join(all_words)
   return True
 
-sidewalk.add_verb('scream', scream)
+sidewalk.add_verb('scream', Verb(scream))
 
 # Add an animal to roam around.  Animals act autonomously (on their own).
 cat = Animal("cat")
@@ -130,12 +130,12 @@ cat.set_location(sidewalk)
 
 # custom verbs available when the cat is present.
 # say_on_self triggers when the cat is the noun: e.g. "pet cat"
-cat.add_verb("pet", cat.say_on_self("The cat purrs."))
-cat.add_verb("eat", cat.say_on_self("Don't do that, PETA will get you!"));
-cat.add_verb("kill", cat.say_on_self("The cat escapes and bites you. Ouch!"));
+cat.add_verb("pet", SayOnSelf("The cat purrs."))
+cat.add_verb("eat", SayOnSelf("Don't do that, PETA will get you!"));
+cat.add_verb("kill", SayOnSelf("The cat escapes and bites you. Ouch!"));
 
 # say_on_noun triggers when you tell the cat to do something: e.g. "tell cat lick yourself"
-cat.add_verb("lick", cat.say_on_noun("yourself", "The cat beings to groom itself."));
+cat.add_verb("lick", SayOnNoun("yourself", "The cat beings to groom itself."));
 
 # Add a robot.  Robots can take commands to perform actions.
 robby = Robot("Robby")
@@ -166,7 +166,7 @@ def throw(self, actor, noun, words):
      print 'You hurt your arm.'
      return False
 
-hero.add_verb("throw", throw)
+hero.add_verb("throw", Verb(throw))
 
 
 # The code starting here is for saving games and data that can be shared.

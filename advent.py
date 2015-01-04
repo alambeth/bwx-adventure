@@ -113,6 +113,48 @@ def proper_list_from_dict( d ):
     buf.append(add_article(name))
   return "".join(buf)
 
+class Verb(object):    
+  def __init__(self, function):
+    self.function = function 
+
+  def act(self, actor, noun, words):
+    result = True
+    if not self.function(actor, noun, None):
+      result = False
+    # treat 'verb noun1 and noun2..' as 'verb noun1' then 'verb noun2'
+    # treat 'verb noun1, noun2...' as 'verb noun1' then 'verb noun2'
+    if words:
+      for noun in words:
+        noun = noun.strip(',')
+        if noun in articles: continue
+        if noun == 'and': continue
+        if not self.function(actor, noun, None):
+          result = False
+    return result
+
+class Say(Verb):
+  def __init__(self, string):
+    Verb.__init__(self, None)
+    self.string = string
+
+  def act(self, actor, noun, words):
+    my_game.output(self.string, FEEDBACK)
+    return True
+
+class SayOnNoun(Say):    
+  def __init__(self, noun, string):
+    Say.__init__(self, string)
+    self.noun = noun
+
+  def act(self, actor, noun, words):
+    if self.noun != noun:
+      return False
+    my_game.output(self.string, FEEDBACK)
+    return True
+
+class SayOnSelf(SayOnNoun):
+  def __init__(self, string):
+    SayOnNoun.__init__(self, None, string)
 
 # Object is a place to put default inplementations of methods that everything
 # in the game should support (eg save/restore, how to respond to verbs etc)
@@ -136,27 +178,9 @@ class Object(object):
     if f in self.vars:
       del self.vars[f]
 
-  def do_say(self, s):
-    self.output( s, FEEDBACK )
-    return True
-
-  def say(self, s):
-    return (lambda s: lambda *args: self.do_say(s))(s)
-
-  def do_say_on_noun(self, n, s, actor, noun, words):
-    if noun != n:
-      return False
-    self.output( s, FEEDBACK )
-    return True
-
-  def say_on_noun(self, n, s):
-    return (lambda n, s: lambda actor, noun, words: self.do_say_on_noun(n, s, actor, noun, words))(n, s)
-
-  def say_on_self(self, s):
-    return (lambda s: lambda actor, noun, words: self.do_say_on_noun(None, s, actor, noun, words))(s)
-
-  def add_verb( self, verb, f ):
-    self.verbs[' '.join(verb.split())] = f
+  def add_verb(self, verb, v):
+    self.verbs[' '.join(verb.split())] = v
+    return v
 
   def get_verb( self, verb ):
     c = ' '.join(verb.split())
@@ -356,9 +380,9 @@ class Game(Object):
         for a in actor.location.actors:
           if a.name != target_name:
             continue
-          f = a.get_verb( verb )
-          if f:
-            if f( a, noun, words ):
+          v = a.get_verb( verb )
+          if v:
+            if v.act( a, noun, words ):
               done = True
               break
         if done:
@@ -374,18 +398,18 @@ class Game(Object):
         done = False
         for thing in things:
           if indirect == thing.name:
-            f = thing.get_verb( verb )
-            if f:
-              if f( actor, noun, words ):
+            v = thing.get_verb( verb )
+            if v:
+              if v.act( actor, noun, words ):
                 done = True
                 break
         if done:
           continue
         for a in actor.location.actors:
           if indirect == a.name:
-            f = a.get_verb( verb )
-            if f:
-              if f( a, noun, words ):
+            v = a.get_verb( verb )
+            if v:
+              if v.act( a, noun, words ):
                 done = True
                 break
         if done:
@@ -396,27 +420,27 @@ class Game(Object):
         done = False
         for thing in things:
           if noun == thing.name:
-            f = thing.get_verb( verb )
-            if f:
-              if f( actor, None, words ):
+            v = thing.get_verb( verb )
+            if v:
+              if v.act( actor, None, words ):
                 done = True
                 break
         if done:
           continue
         for a in actor.location.actors:
           if noun == a.name:
-            f = a.get_verb( verb )
-            if f:
-              if f( a, None, words ):
+            v = a.get_verb( verb )
+            if v:
+              if v.act( a, None, words ):
                 done = True
                 break
         if done:
           continue
 
       # location specific verb
-      f = actor.location.get_verb(verb)
-      if f:
-        if f( actor.location, actor, noun, words ):
+      v = actor.location.get_verb(verb)
+      if v:
+        if v.act(actor, noun, words):
           continue
 
       # handle directional moves of the actor
@@ -426,9 +450,9 @@ class Game(Object):
           continue
 
       # general actor verb
-      f = actor.get_verb( verb )
-      if f:
-        if f( actor, noun, words ):
+      v = actor.get_verb( verb )
+      if v:
+        if v.act( actor, noun, words ):
           continue
 
       # not understood
@@ -558,26 +582,6 @@ class Connection(Object):
     self.way_ba = way_ba
 
 
-def act_many( f, actor, noun, words ):
-  result = True
-  if not f( actor, noun ):
-    result = False
-  # treat 'verb noun1 and noun2..' as 'verb noun1' then 'verb noun2'
-  # treat 'verb noun1, noun2...' as 'verb noun1' then 'verb noun2'
-  if words:
-    for noun in words:
-      noun = noun.strip(',')
-      if noun in articles: continue
-      if noun == 'and': continue
-      if not f( actor, noun ):
-        result = False
-  return result
-
-
-def act_multi( f ):
-  return ((lambda f : (lambda a, n, w: act_many( f, a, n, w )))(f))
-
-
 # An actor in the game
 class Actor(Object):
   # location
@@ -593,16 +597,16 @@ class Actor(Object):
     self.hero = False
     self.isare = "is"
     # associate each of the known actions with functions
-    self.verbs['take'] = act_multi(self.act_take1)
-    self.verbs['get'] = act_multi(self.act_take1)
-    self.verbs['drop'] = act_multi(self.act_drop1)
-    self.verbs['inventory'] = self.act_inventory
-    self.verbs['i'] = self.act_inventory
-    self.verbs['look'] = self.act_look
-    self.verbs['l'] = self.act_look
-    self.verbs['go'] = self.act_go1
-    self.verbs['verbs'] = self.act_list_verbs
-    self.verbs['commands'] = self.act_list_verbs
+    self.verbs['take'] = Verb(self.act_take1)
+    self.verbs['get'] = Verb(self.act_take1)
+    self.verbs['drop'] = Verb(self.act_drop1)
+    self.verbs['inventory'] = Verb(self.act_inventory)
+    self.verbs['i'] = Verb(self.act_inventory)
+    self.verbs['look'] = Verb(self.act_look)
+    self.verbs['l'] = Verb(self.act_look)
+    self.verbs['go'] = Verb(self.act_go1)
+    self.verbs['verbs'] = Verb(self.act_list_verbs)
+    self.verbs['commands'] = Verb(self.act_list_verbs)
 
   # describe ourselves
   def describe( self, observer ):
@@ -761,12 +765,12 @@ class Robot(Actor):
     self.scripts = {}
     self.current_script = None
     self.script_think_time = 0
-    self.verbs['record'] = self.act_start_recording
-    self.verbs['run'] = self.act_run_script
-    self.verbs['print'] = self.act_print_script
-    self.verbs['save'] = self.act_save_file
-    self.verbs['load'] = self.act_load_file
-    self.verbs['think'] = self.set_think_time
+    self.verbs['record'] = Verb(self.act_start_recording)
+    self.verbs['run'] = Verb(self.act_run_script)
+    self.verbs['print'] = Verb(self.act_print_script)
+    self.verbs['save'] = Verb(self.act_save_file)
+    self.verbs['load'] = Verb(self.act_load_file)
+    self.verbs['think'] = Verb(self.set_think_time)
 
   def parse_script_name(self, words):
     if not words or len(words) < 2:
@@ -868,9 +872,6 @@ class Hero(Robot):
     self.hero = True
     self.isare = "are"
 
-  def add_verb( self, name, f ):
-    self.verbs[name] = (lambda self: lambda *args : f(self, *args))(self)
-  
 
 # Animals are actors which may act autonomously each turn
 class Animal(Actor):
@@ -901,9 +902,9 @@ class Pet(Robot, Animal):
   def __init__( self, name ):
     super(Pet, self ).__init__( name )
     self.leader = None
-    self.verbs['heel'] = self.act_follow
-    self.verbs['follow'] = self.act_follow
-    self.verbs['stay'] = self.act_stay
+    self.verbs['heel'] = Verb(self.act_follow)
+    self.verbs['follow'] = Verb(self.act_follow)
+    self.verbs['stay'] = Verb(self.act_stay)
 
   def act_follow(self, actor, words=None):
     self.leader = self.hero
