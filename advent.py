@@ -579,16 +579,13 @@ class Actor(Object):
   # moved
   # verbs
 
-  def __init__( self, name, hero = False ):
+  def __init__( self, name):
     Object.__init__(self, name)
     self.location = None
     self.inventory = {}
     self.cap_name = name.capitalize()
-    self.hero = hero
-    if hero:
-      self.isare = "are"
-    else:
-      self.isare = "is"
+    self.hero = False
+    self.isare = "is"
     # associate each of the known actions with functions
     self.verbs['take'] = act_multi(self.act_take1)
     self.verbs['get'] = act_multi(self.act_take1)
@@ -684,15 +681,6 @@ class Actor(Object):
 
   def set_next_script_line( self, line ):
     return True
-
-
-
-class Hero(Actor):
-  def __init__( self ):
-    super(Hero, self).__init__("you", True)
-
-  def add_verb( self, name, f ):
-    self.verbs[name] = (lambda self: lambda *args : f(self, *args))(self)
 
 
 # Scripts are sequences of instructions for Robots to execute
@@ -867,6 +855,16 @@ class Robot(Actor):
     return True
 
 
+# Hero derives from Robot so that we can record and run scripts as the hero
+class Hero(Robot):
+  def __init__( self ):
+    super(Hero, self).__init__("you")
+    self.hero = True
+    self.isare = "are"
+
+  def add_verb( self, name, f ):
+    self.verbs[name] = (lambda self: lambda *args : f(self, *args))(self)
+  
 
 # Animals are actors which may act autonomously each turn
 class Animal(Actor):
